@@ -1,0 +1,14 @@
+name = ExpressWeb - Admin
+description = Provides basic admin funcionallities
+core = 7.x
+package = ExpressWeb
+dependencies[] = expressweb_core
+dependencies[] = views
+features[ctools][] = views:views_default:3.0
+features[features_api][] = api:2
+features[views_view][] = administer_content
+features[views_view][] = administer_sections
+features[views_view][] = contact_form_entries
+features[views_view][] = recently_modified
+features_exclude[dependencies][ctools] = ctools
+mtime = 1450170539

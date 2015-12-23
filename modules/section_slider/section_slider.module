@@ -1,0 +1,66 @@
+<?php
+/**
+ * @file
+ * Code for the Section - slider feature.
+ */
+
+include_once 'section_slider.features.inc';
+
+/**
+* Implements hook_theme().
+* This way content type uses theme file loacted in templates directory instead of default node.tpl.php file.
+* Still it can be overriden by in theme directory.
+*/
+function section_slider_theme($existing, $type, $theme, $path) {
+  $theme = array();
+
+  $theme['node__section_slider'] = array(
+    'render element' => 'content',
+    'base hook' => 'node',
+    'template' => 'node--section_slider',
+    'path' => drupal_get_path('module', 'section_slider') . '/templates',
+  );
+
+  return $theme;
+}
+
+/**
+* Implements hook_preprocess_hook().
+*/
+function section_slider_preprocess_node(&$vars) {
+  if ($vars['type'] == 'section_slider') {
+    $vars['classes_array'][] = 'wow';
+    $vars['classes_array'][] = 'fadeInRight';
+
+    $wrapper = entity_metadata_wrapper('node', $vars['node']);
+    
+    $slides = $wrapper->field_slider->value();
+    $slider = array();
+
+    foreach ($slides as $key => $value) {
+      if ($wrapper->field_slider_width->value() == '1') {
+        $slider_image = $wrapper->field_slider[$key]->field_slider_image->value();
+        $slider[$key]['url'] = image_style_url('slider_fixed_1280x960', $slider_image['uri']);
+      } else {
+        $slider_image = $wrapper->field_slider[$key]->field_slider_image->value();
+        $slider[$key]['url'] = image_style_url('slider_full_1920x800', $slider_image['uri']);
+      }
+      $slider[$key]['title'] = $wrapper->field_slider[$key]->field_slide_title->value();
+      $slider[$key]['description'] = $wrapper->field_slider[$key]->field_description->value();
+      $slider[$key]['active'] = ($key == '0') ? ' active': ''; 
+    }
+
+    $vars['slider'] = $slider;
+
+    if ($wrapper->field_slider_width->value() == '1') {
+      $vars['classes_array'][] = 'container';
+    }
+  } 
+}
+
+/**
+* Implements hook_preprocess_hook().
+*/
+function section_slider_preprocess_page(&$vars) {
+  drupal_add_css(drupal_get_path('module', 'section_slider') . '/css/section_slider.css');
+}

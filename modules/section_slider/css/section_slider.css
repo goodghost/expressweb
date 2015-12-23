@@ -1,0 +1,10 @@
+.node-section-slider h2:after {
+  content: "";
+  width: 5%;
+  height: 3px;
+  background: #000; 
+  display: block;
+  position: relative;
+  text-align: center;
+  margin: 20px auto;
+}

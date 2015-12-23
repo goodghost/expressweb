@@ -1,0 +1,13 @@
+<?php
+/**
+ * @file
+ * Code for the Social links feature.
+ */
+
+include_once 'expressweb_social_links.features.inc';
+
+function expressweb_social_links_form_alter(&$form, &$form_state, $form_id) {
+  if ($form['#form_id'] == 'social_links_node_form') {
+    $form['title']['#disabled'] = TRUE;
+  }
+}

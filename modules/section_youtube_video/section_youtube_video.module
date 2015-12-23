@@ -1,0 +1,42 @@
+<?php
+/**
+ * @file
+ * Code for the Section - YouTube Video feature.
+ */
+
+include_once 'section_youtube_video.features.inc';
+
+/**
+* Implements hook_theme().
+* This way content type uses theme file loacted in templates directory instead of default node.tpl.php file.
+* Still it can be overriden by in theme directory.
+*/
+function section_youtube_video_theme($existing, $type, $theme, $path) {
+  $theme = array();
+  $theme['node__section_youtube_video'] = array(
+    'render element' => 'content',
+    'base hook' => 'node',
+    'template' => 'node--section_youtube_video',
+    'path' => drupal_get_path('module', 'section_youtube_video') . '/templates',
+  );
+
+  $theme['field__field_youtube_video'] = array(
+    'render element' => 'content',
+    'base hook' => 'field',
+    'template' => 'field--field-youtube-video',
+    'path' => drupal_get_path('module', 'section_youtube_video') . '/templates',
+  );
+
+  return $theme;
+}
+
+/**
+* Implements hook_preprocess_hook().
+*/
+function section_youtube_video_preprocess_node(&$vars) {
+  if ($vars['type'] == 'section_youtube_video') {
+    $vars['classes_array'][] = 'container';
+    $wrapper = entity_metadata_wrapper('node', $vars['node']);
+    $vars['display_title'] = $wrapper->field_display_title->value();
+  }
+}

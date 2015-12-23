@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Section - item with link feature.
+ */
+
+include_once 'section_item_with_link.features.inc';

@@ -1,0 +1,36 @@
+.node-section-text-over-image {
+  position: relative;
+}
+
+.node-section-text-over-image.left {
+  text-align: left;
+}
+
+.node-section-text-over-image.right {
+  text-align: right;
+}
+
+.node-section-text-over-image.center {
+  text-align: center;
+}
+
+.node-section-text-over-image .field-name-field-image img {
+  max-width: 100%;
+  height: auto;
+}
+
+.node-section-text-over-image .content .text-content {
+  position: absolute;
+  bottom: 5%;
+  padding: 0 5%;
+}
+
+.node-section-text-over-image .content .text-content h2 {
+  background: #000000;
+}
+
+.node-section-text-over-image .content .text-content .field-name-body {
+  text-shadow: 2px 2px 2px #000;
+  color: #fff;
+  font-size: 18px;
+}

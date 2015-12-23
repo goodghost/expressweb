@@ -1,0 +1,92 @@
+<?php
+/**
+ * @file
+ * Code for the ExpressWeb - newsletter feature.
+ */
+
+include_once 'expressweb_newsletter.features.inc';
+
+/**
+ * Implements hook_block_info().
+ */
+function expressweb_newsletter_block_info() {
+  $blocks = array();
+  $blocks['newsletter_popup_and_icon'] = array(
+    'info' => t('Newsletter popup and icon'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function expressweb_newsletter_block_view($delta = NULL) {
+  $block = array();
+  
+  switch($delta) {
+    case 'newsletter_popup_and_icon' :
+      $block['content'] = array(
+        '#markup' => expressweb_newsletter_block_content(),
+      );
+    break;
+  }
+  
+  return $block;
+}
+
+/**
+* Implements hook_theme().
+*/
+function expressweb_newsletter_theme($existing, $type, $theme, $path) {
+  $theme = array();
+
+  $theme['popup-and-icon'] = array(
+    'template' => 'popup-and-icon',
+    'path' => drupal_get_path('module', 'expressweb_newsletter') . '/templates',
+    'variables' => array(
+      'form' => NULL,
+    ),
+  );
+
+  return $theme;
+}
+
+/**
+* Generate block content
+*/
+function expressweb_newsletter_block_content() {
+  global $user;
+  drupal_add_js(drupal_get_path('module', 'expressweb_newsletter') . '/js/newsletter.js');
+  module_load_include('inc', 'node', 'node.pages');
+
+  $node = (object) array(
+    'uid' => $user->uid,
+    'name' => (isset($user->name) ? $user->name : ''),
+    'type' => 'newsletter',
+    'language' => LANGUAGE_NONE,
+  );
+
+  $form = drupal_get_form('newsletter_node_form', $node);
+  $content =  theme('popup-and-icon', array('form' => $form));
+  return $content;
+}
+
+/**
+* Implements hook_form_FORM_ID_alter().
+*/
+function expressweb_newsletter_form_newsletter_node_form_alter(&$form, &$form_state, $form_id) {
+  $form['actions']['submit']['#submit'][] = 'expressweb_newsletter_status_message';
+}
+
+/**
+* Newsletter submit message 
+*/
+function expressweb_newsletter_status_message() {
+  // Clean all 'status' type messages
+  $messages = drupal_get_messages('status');
+
+  // Override message
+  drupal_set_message(t('Thank you for subscribing our newsletter.'));
+}

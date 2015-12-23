@@ -1,0 +1,100 @@
+<?php
+
+/**
+* Implements hook_menu().
+*/
+function expressweb_core_menu() {
+   $items['admin/config/expressweb'] = array(
+    'title' => 'Express Web',
+    'description' => 'Setup expressweb',
+    'position' => 'right',
+    'weight' => -100,
+    'page callback' => 'system_admin_menu_block_page',
+    'access arguments' => array('administer site configuration'),
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+  );
+
+  $items['admin/config/expressweb/theme-settings'] = array(
+    'title' => 'Theme settings',
+    'description' => 'Various theme ExpressWeb settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('expressweb_core_settings'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'expressweb_core.admin.inc',
+  );
+
+  return $items;
+}
+
+/**
+* Implements hook_preprocess_hook().
+*/
+function expressweb_core_preprocess_html(&$vars) {
+  // Font awsome
+  drupal_add_css(drupal_get_path('module', 'expressweb_core') . '/css/font-awesome.min.css');
+
+  global $theme;
+  if ($theme != 'admin_expressweb') {
+
+    global $user;
+    if (isset($user->uid) && !empty($user->uid)) {
+      $vars['classes_array'][] = 'user-'.$user->uid.'-logged-in';
+    }
+    // Add wow.js and animate
+    // More info here https://github.com/matthieua/WOW
+    drupal_add_css(drupal_get_path('module', 'expressweb_core') . '/css/animate.min.css');
+    drupal_add_js(drupal_get_path('module', 'expressweb_core') . '/js/wow.min.js');
+    drupal_add_js(drupal_get_path('module', 'expressweb_core') . '/js/wow.init.js');
+
+    // Add parallax script 
+    // More info here https://github.com/pixelcog/parallax.js
+    // Needs jquery update 1.9.1 set
+    drupal_add_js(drupal_get_path('module', 'expressweb_core') . '/js/parallax.min.js');
+
+    // Bootstrap responsive menu behaviour
+    drupal_add_js(drupal_get_path('module', 'expressweb_core') . '/js/responsive-menu.js');
+
+    // Hover styles
+    // More info here: http://tympanus.net/codrops/2015/05/13/inspiration-for-text-styles-and-hover-effects/
+    drupal_add_css(drupal_get_path('module', 'expressweb_core') . '/css/linkstyles.css');
+
+    // Flat icons
+    drupal_add_css(drupal_get_path('module', 'expressweb_core') . '/css/flaticon.css');
+
+    // Image hover styles
+    // More info here: http://tympanus.net/Development/HoverEffectIdeas/
+    drupal_add_css(drupal_get_path('module', 'expressweb_core') . '/css/set1.css');
+
+    // Messages style
+    $messages_style = variable_get('expressweb_core_theme_messages', 0);
+    if ($messages_style == '1') {
+      drupal_add_js(drupal_get_path('module', 'expressweb_core') . '/js/messagesModal.js');
+    }
+
+    //Add body class (dark or light) depending on theme-settings
+    $color_scheme = variable_get('expressweb_core_theme_color_scheme', 0);
+    if ($color_scheme == '0') {
+      $vars['classes_array'][] = 'light';
+    } else {
+      $vars['classes_array'][] = 'dark';
+    }
+  }
+}
+
+/**
+* Implements hook_preprocess_hook().
+*/
+function expressweb_core_preprocess_page(&$vars) {
+  // Hide title on front page
+  if ($vars['is_front']) {
+     drupal_set_title('');
+  }
+}
+
+function expressweb_core_form_alter(&$form, &$form_state, $form_id) {
+  if (isset($form['actions']['preview_changes'])) {
+    unset($form['actions']['preview_changes']);
+  }
+}

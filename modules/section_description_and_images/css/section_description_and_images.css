@@ -1,0 +1,37 @@
+.node-section-description-and-images {
+
+}
+
+.node-section-description-and-images h2 {
+  text-align: center;
+}
+
+.node-section-description-and-images h2:after {
+  content: "";
+  width: 5%;
+  height: 3px;
+  background: #000; 
+  display: block;
+  position: relative;
+  text-align: center;
+  margin: 20px auto;
+}
+
+.node-section-description-and-images .content .field-name-body {
+  text-align: center;
+  max-width: 80%;
+  margin: 0 auto 30px auto;
+}
+
+.node-section-description-and-images .grid {
+  padding: 15px;
+}
+.node-section-description-and-images .grid figure {
+  margin: auto;
+  float: none;
+  width: auto;
+  min-width: 0;
+  background: #000;
+  max-width: 100%;
+  max-height: none;
+}

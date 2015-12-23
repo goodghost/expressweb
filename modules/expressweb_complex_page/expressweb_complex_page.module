@@ -1,0 +1,47 @@
+<?php
+/**
+ * @file
+ * Code for the ExpressWeb - Complex Page feature.
+ */
+
+include_once 'expressweb_complex_page.features.inc';
+
+/**
+* Implements hook_theme().
+*/
+function expressweb_complex_page_theme($existing, $type, $theme, $path) {
+  $theme = array();
+
+  $theme['node__complex_page'] = array(
+    'render element' => 'content',
+    'base hook' => 'node',
+    'template' => 'node--complex_page',
+    'path' => drupal_get_path('module', 'expressweb_complex_page') . '/templates',
+  );
+
+  return $theme;
+}
+
+function expressweb_complex_page_preprocess_page(&$vars) {
+  // Remove title if node is complex page and field_display_title is set to 0
+  if (isset($vars['node'])) {
+    $node = $vars['node'];
+    if ($node->type == 'complex_page') {
+      $wrapper = entity_metadata_wrapper('node', $node);
+      $display_title = $wrapper->field_display_title->value();
+      if (!$display_title) {
+        drupal_set_title('');
+      }
+    }
+  }
+}
+
+function expressweb_complex_page_preprocess_node(&$vars) {
+  if ($vars['type'] == 'complex_page') {
+    $wrapper = entity_metadata_wrapper('node', $vars['node']);
+    $display_title = $wrapper->field_display_title->value();
+    if (!$display_title) {
+      $vars['classes_array'][] = 'no-title';
+    }
+  }
+}

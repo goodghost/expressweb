@@ -1,0 +1,79 @@
+<?php
+/**
+ * @file
+ * Code for the ExpressWeb - View feature.
+ */
+
+include_once 'expressweb_view.features.inc';
+
+
+/**
+* Implements hook_theme().
+* This way content type uses theme file loacted in templates directory instead of default node.tpl.php file.
+* Still it can be overriden by in theme directory.
+*/
+function expressweb_view_theme($existing, $type, $theme, $path) {
+  $theme = array();
+
+  $theme['node__view'] = array(
+    'render element' => 'content',
+    'base hook' => 'node',
+    'template' => 'node--view',
+    'path' => drupal_get_path('module', 'expressweb_view') . '/templates',
+  );
+
+  return $theme;
+}
+
+/**
+* Implements hook_preprocess_hook().
+*/
+function expressweb_view_preprocess_node(&$vars) {
+  if ($vars['type'] == 'view') {
+
+    $vars['content_top'] = '';
+    $vars['content_bottom'] = '';
+
+    $wrapper = entity_metadata_wrapper('node', $vars['node']);
+
+    // Set width
+    $width = $wrapper->field_view_width->value();
+    if ($width == 'fixed') {
+      $vars['classes_array'][] = 'container';
+    }
+
+    // Get object ID
+    $object_id = $wrapper->field_view_id->value();
+    $view_display = $wrapper->field_view_display->value();
+    $object_type = $wrapper->field_object_type->value();
+    
+    switch ($object_type) {
+      // View
+      case 0:
+        if (!empty($view_display)) {
+          $view = views_embed_view($object_id, $view_display);
+        } else {
+          $view = views_embed_view($object_id);
+        }
+        $vars['classes_array'][] = $wrapper->field_view_id->value();
+        $vars['embedded_object'] = $view;
+
+        // Add additional display when conference room is displaying
+        $view = $wrapper->field_view_id->value();
+        if ($view == 'conference_rooms') {
+          $vars['content_bottom'] = views_embed_view($view, 'block_1');
+        }
+
+        if ($view == 'rooms') {
+          $vars['content_top'] = views_embed_view($view, 'block_1'); 
+        }
+      break;
+
+      // Form
+      case 1:
+        $form = drupal_get_form($object_id);
+        $vars['embedded_object'] = drupal_render($form);
+      break;
+    }
+  }
+}

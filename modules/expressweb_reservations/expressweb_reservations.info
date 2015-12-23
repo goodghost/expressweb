@@ -1,0 +1,5 @@
+name = Expressweb Reservations
+description = Provides reservations form.
+core = 7.x
+package = ExpressWeb
+dependencies[] = expressweb_core

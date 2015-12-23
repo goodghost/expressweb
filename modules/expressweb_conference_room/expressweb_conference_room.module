@@ -1,0 +1,47 @@
+<?php
+/**
+ * @file
+ * Code for the ExpressWeb - Conference room feature.
+ */
+
+include_once 'expressweb_conference_room.features.inc';
+
+/**
+* Implements hook_theme().
+*/
+function expressweb_conference_room_theme($existing, $type, $theme, $path) {
+  $theme = array();
+
+  $theme['node__conference_room'] = array(
+    'render element' => 'content',
+    'base hook' => 'node',
+    'template' => 'node--conference_room',
+    'path' => drupal_get_path('module', 'expressweb_conference_room') . '/templates',
+  );
+
+  $theme['field__field_equipment'] = array(
+    'render element' => 'content',
+    'base hook' => 'field',
+    'template' => 'field--field-equipment',
+    'path' => drupal_get_path('module', 'expressweb_conference_room') . '/templates',
+  );
+
+  return $theme;
+}
+
+function expressweb_conference_room_preprocess_node(&$vars) {
+  drupal_add_js(drupal_get_path('module', 'expressweb_conference_room') . '/js/expressweb_conference_room.js');
+  if ($vars['type'] == 'conference_room') {
+    $wrapper = entity_metadata_wrapper('node', $vars['node']);
+    $slides = $wrapper->field_conference_room_images->value();
+    $slider = array();
+
+    foreach ($slides as $key => $value) {
+      $slider[$key]['url'] = image_style_url('slider_fixed_1280x960', $slides[$key]['uri']);
+      $slider[$key]['title'] = $slides[$key]['title'];
+      $slider[$key]['active'] = ($key == '0') ? ' active': ''; 
+    }
+
+    $vars['slider'] = $slider;
+  }
+}

@@ -1,0 +1,119 @@
+<?php
+/**
+ * @file
+ * Code for the Section - description and images feature.
+ */
+
+include_once 'section_description_and_images.features.inc';
+
+function section_description_and_images_menu() {
+  $items['admin/config/expressweb/section-description-and-images'] = array(
+    'title' => 'Section - description and images',
+    'description' => 'Administer section description and images',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('section_description_and_images_settings'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'section_description_and_images.admin.inc',
+  );
+
+  return $items;
+}
+/**
+* Implements hook_theme().
+* This way content type uses theme file loacted in templates directory instead of default node.tpl.php file.
+* Still it can be overriden by in theme directory.
+*/
+function section_description_and_images_theme($existing, $type, $theme, $path) {
+  $theme = array();
+
+  $theme['node__section_description_and_images'] = array(
+    'render element' => 'content',
+    'base hook' => 'node',
+    'template' => 'node--section_description_and_images',
+    'path' => drupal_get_path('module', 'section_description_and_images') . '/templates',
+  );
+
+  $theme['grid_images'] = array(
+    'template' => 'grid-images',
+    'path' => drupal_get_path('module', 'section_description_and_images') . '/templates',
+    'variables' => array(
+      'images' => NULL,
+      'col_classes' => NULL,
+    ),
+  );
+
+  return $theme;
+}
+
+/**
+* Implements hook_preprocess_hook().
+*/
+function section_description_and_images_preprocess_node(&$vars) {
+  // Add CSS for section and complex page content types
+  // This CSS is used only if LESS won't work for some reason
+  // In fact section_text_over_image.less file is added to
+  // style.less theme file and it compiles to styles.css
+  // This way we can use bootstrap varaibles.
+  if ($vars['type'] == 'section_description_and_images' || $vars['type'] == 'complex_page') {
+    drupal_add_css(drupal_get_path('module', 'section_description_and_images') . '/css/section_description_and_images.css');
+  }
+
+  if ($vars['type'] == 'section_description_and_images') {
+    $wrapper = entity_metadata_wrapper('node', $vars['node']);
+
+    /**** WIDTH ****/
+    // Classes for width 
+    $width = array(
+      'full' => 'container-fluid',
+      'fixed' => 'container',
+    );
+
+    // Add new class for node
+    $vars['classes_array'][] = (isset($wrapper->field_width)) ? $width[$wrapper->field_width->value()] : $width['fixed'];
+    $vars['classes_array'][] = 'wow';
+    $vars['classes_array'][] = 'fadeIn';
+
+
+    /**** IMAGES ****/
+    //dsm(variable_get('section_description_and_images_images_style'));
+    // Array of images
+    $images = $wrapper->field_images_di->value();
+
+    // Array of selected items from $images array
+    $group_images = array();
+
+    // Fill $group_images array with data
+    foreach($images as $key => $value) {
+      $group_images[] = array(
+        'url' => image_style_url('big_square_600x600', $value['uri']),
+        'title' => $value['title'],
+        'width' => $value['width'],
+        'height' => $value['height'],
+        'fid' => $value['fid'],
+      );
+    }
+    
+    // Grid size - how many images per row should appear
+    $grid = $wrapper->field_grid->value();
+
+    // Divide $group_images into grid chunks
+    $group_images = array_chunk($group_images, $grid);
+
+    // Bootstrap classes for grid
+    $col_classes = array(
+      2 => 'col-xs-6',
+      3 => 'col-xs-12 col-sm-4',
+      4 => 'col-xs-6 col-sm-3',
+      6 => 'col-xs-6 col-md-2',
+      12 => 'col-xs-6 col-md-1',
+    );
+
+    // Pass $my_images to node--section_description_and_images.tpl.php using grid_images theme
+    $vars['my_images'] = theme('grid_images', array('images' => $group_images, 'col_classes' => $col_classes[$grid]));
+  }
+}
+
+function section_description_and_images_preprocess_grid_images(&$vars) {
+  $vars['extra'] = '';
+}

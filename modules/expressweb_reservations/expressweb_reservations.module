@@ -1,0 +1,235 @@
+<?php
+
+/**
+* Implements hook_menu().
+*/
+function expressweb_reservations_menu() {
+   $items['reservations'] = array(
+    'title' => 'Reservations',
+    'description' => 'Setup expressweb',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('expressweb_reservations_form'),
+    'access arguments' => array('access content'),
+  );
+  return $items;
+}
+
+function expressweb_reservations_theme($existing, $type, $theme, $path) {
+  $theme = array();
+  $theme['reservation_form'] = array(
+    'template' => 'reservation-form',
+    'render element' => 'form',
+    'path' => drupal_get_path('module', 'expressweb_reservations') . '/templates',
+    'variables' => array(
+      'form' => NULL,
+    ),
+  );
+  return $theme;
+}
+
+/* Reservation form */
+function expressweb_reservations_form($form, &$form_state) {
+  //$form['#theme'] = 'reservation_form';
+  $form['#attributes'] = array(
+    'class' => array('container'),
+  ); 
+  $form['name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('First name'),
+    '#required' => TRUE,
+  );
+
+  $form['surname'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Last name'),
+    '#required' => TRUE,
+  );
+
+  $form['address'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Address'),
+    '#required' => FALSE,
+  );
+
+  $form['check_in_date'] = array(
+    '#type' => 'date',
+    '#title' => t('Check-in date'),
+  );
+
+  $form['check_out_date'] = array(
+    '#type' => 'date',
+    '#title' => t('Check-out date'),
+  );
+
+  $form['number_of_people'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Number of mature people'),
+    '#required' => TRUE,
+  );
+
+  $form['number_of_kids'] = array(
+    '#type' => 'select',
+    '#title' => t('Number of kids'),
+    '#required' => FALSE,
+    '#options' => array(0, 1, 2, 3, 4, 5),
+    '#ajax' => array(
+      'callback' => 'expressweb_reservations_kids_age_callback',
+      'wrapper' => 'kids-container',
+      'method' => 'replace',
+      'effect' => 'fade',
+    ),
+  );
+
+  $form['kids_age_container'] = array(
+    '#prefix' => '<div id="kids-container">',
+    '#suffix' => '</div>',
+    '#type' => 'fieldset',
+  );
+
+  $kids_age = array(
+    1 => t('First childs age'),
+    2 => t('Second childs age'),
+    3 => t('Third childs age'),
+    4 => t('Fourth childs age'),
+    5 => t('Fifth childs age'),
+  );
+
+  $kids_number = !empty($form_state['values']['number_of_kids']) ? $form_state['values']['number_of_kids'] : 0;
+  for ($i = 1; $i <= $kids_number; $i++) {
+    $form['kids_age_container']["kid_$i"] = array(
+      '#type' => 'textfield',
+      '#title' => $kids_age[$i],
+      '#required' => TRUE,
+    );
+  }
+
+  $form['phone'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Phone'),
+    '#required' => FALSE,
+  );
+
+  $form['email'] = array(
+    '#type' => 'textfield',
+    '#title' => t('E-mail'),
+    '#required' => TRUE,
+  );
+
+  $form['notes'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Notes'),
+    '#cols' => 20,
+    '#required' => FALSE,
+  );
+
+  $form['submit_button'] = array(
+    '#type' => 'submit',
+    '#value' => t('Book now'),
+  );
+
+  return $form;
+}
+
+/* Ajax callback */
+function expressweb_reservations_kids_age_callback($form, $form_state) {
+  return $form['kids_age_container'];
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function expressweb_reservations_block_info() {
+  $blocks = array();
+
+  $blocks['expressweb_reservations_link'] = array(
+    'info' => t('Reservations link'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function expressweb_reservations_block_view($delta = NULL) {
+  $block = array();
+  
+  switch($delta) {
+    case 'expressweb_reservations_link' :
+      $block['content'] = array(
+        '#markup' => expressweb_reservations_reservation_link(),
+      );
+    break;
+  }
+  return $block;
+}
+
+/**
+ * Content of reservation link block
+ */
+function expressweb_reservations_reservation_link() {
+  $options = array(
+    'attributes' => array('class' => array('reservations-link')),
+  );
+  $link = l(t('Reservations'), 'reservations', $options);
+  return $link;
+}
+
+
+/* Form submit */
+function expressweb_reservations_form_submit($form, &$form_state) {
+  $body = '';
+  $body .= t('Name'). ': ' .$form_state['values']['name']."\r\n";
+  $body .= t('Surname'). ': ' .$form_state['values']['surname']."\r\n";
+  $body .= t('Address'). ': ' .$form_state['values']['address']."\r\n";
+  $body .= t('Check-in date'). ': '.$form_state['values']['check_in_date']['year'] . '/' . $form_state['values']['check_in_date']['month'] . '/' . $form_state['values']['check_in_date']['day']."\r\n";
+  $body .= t('Check-out date'). ': '.$form_state['values']['check_out_date']['year'] . '/' . $form_state['values']['check_out_date']['month'] . '/' . $form_state['values']['check_out_date']['day']."\r\n";
+  $body .= t('Number of mature people') . ': ' . $form_state['values']['number_of_people']."\r\n";
+  $body .= t('Number of kids') . ': ' . $form_state['values']['number_of_kids']."\r\n";
+
+  for($i = 0; $i <= intval($form_state['values']['number_of_kids']); $i++) {
+    if ($i != 0) {
+      $body .= $i .' '. t('kids age') . ': '. $form_state['values']["kid_$i"]."\r\n";
+    }
+  }
+
+  $body .= t('Phone') . ': ' . $form_state['values']['phone']."\r\n";
+  $body .= t('E-mail') . ': ' . $form_state['values']['email']."\r\n";
+  $body .= t('Notes') . ': ' . $form_state['values']['notes'];
+
+  $confirmation_message = t('Your reservation was sent. We will contact you to confirm the stay.');
+  expressweb_reservations_drupal_mail('default_from', 'nawrot@yamandi.com', t('New reservation'), $body, $confirmation_message);
+}
+
+/* Mail function */
+function expressweb_reservations_drupal_mail($from = 'default_from', $to, $subject, $message, $confirmation_message) {
+  $my_module = 'expressweb_reservations';
+  $my_mail_token = microtime();
+  if ($from == 'default_from') {
+    // Change this to your own default 'from' email address.
+    global $base_url;
+    $domain = str_replace('http://', '', $base_url);
+    $from = variable_get('site_mail', 'info@'.$domain);
+  }
+  $message = array(
+    'id' => $my_module . '_' . $my_mail_token,
+    'to' => $to,
+    'subject' => $subject,
+    'body' => array($message),
+    'headers' => array(
+      'From' => $from, 
+      'Sender' => $from, 
+      'Return-Path' => $from,
+    ),
+  );
+  $system = drupal_mail_system($my_module, $my_mail_token);
+  $message = $system->format($message);
+  if ($system->mail($message)) {
+    drupal_set_message($confirmation_message);
+    return TRUE;
+  }
+  else {
+    return FALSE;
+  }
+}

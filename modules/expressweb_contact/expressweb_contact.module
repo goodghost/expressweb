@@ -1,0 +1,447 @@
+<?php
+/**
+ * @file
+ * Code for the ExpressWeb - Contact feature.
+ * This module contains three content types. 
+ *
+ * First contnet type is contact where basic contact data is stored (generally in one node).
+ *
+ * Second content type is contact form where submissions from contact form are stored. There is an additional setting which 
+ * can be enabled or disabled to show contact form or not.
+ *
+ * Third content type is contact template. Nodes of this content type shouldn't be accessible to any user except admin.
+ * This content type is the entity reference in complex page. It consis of field_template which stores template names like 
+ * (Phone only, Mail only, etc) and entity reference field for contact (nodes with basic contact data). It also uses 
+ * view_mode called templates created with Display Suite. This kind of nodes can be seleced while adding complex page. Every 
+ * node of this type is preprocessed in expressweb_contact_preprocess_node function depending on field_template value and 
+ * rendered in custom template file templates/node--contact_templates.tpl.php
+ *
+ * This module also contains custom block where the first phone number is displayed. It uses template from 
+ * templates/contact-phone.tpl.php
+ *
+ * TODO:
+ *  - css 
+ *  - access
+ *  - maybe remove contact content type from complex page entity referecne and leave only contact templates for consistency
+ */
+
+include_once 'expressweb_contact.features.inc';
+
+/**
+ * Implements hook_menu().
+ */
+function expressweb_contact_menu() {
+  $items['admin/config/expressweb/contact'] = array(
+    'title' => 'Contact settings',
+    'description' => 'Enable or disable contact form',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('expressweb_contact_settings'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'expressweb_contact.admin.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function expressweb_contact_block_info() {
+  $blocks = array();
+  
+  $blocks['expressweb_contact_phone'] = array(
+    'info' => t('Contact phone'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+
+  $blocks['expressweb_contact_mail_address'] = array(
+    'info' => t('Contact - mail and address'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function expressweb_contact_block_view($delta = NULL) {
+  $block = array();
+  
+  switch($delta) {
+    case 'expressweb_contact_phone' :
+      $block['content'] = array(
+        '#markup' => expressweb_contact_block_content(),
+      );
+    break;
+    case 'expressweb_contact_mail_address' :
+      $block['content'] = array(
+        '#markup' => expressweb_contact_mail_and_address_block_content(),
+      );
+    break;
+  }
+  return $block;
+}
+
+/**
+* Generate block content
+* Generating only first phone number
+* You can set which items should appear in this block by modifing Teaser of field collection
+*/
+function expressweb_contact_block_content() {
+  $nodes = node_load_multiple(array(), array('type' => 'contact'));
+  if(!empty($nodes)) {
+    foreach ($nodes as $key => $value) {
+      //$view = node_view($nodes[$key], 'teaser');
+      $wrapper = entity_metadata_wrapper('node', $nodes[$key]);
+      $first_phone = $wrapper->field_phone[0]->field_phone_number->value();
+    }
+    $content = theme('contact_phone', array('phone' => $first_phone));
+  } else {
+    $content = t('No phone added');
+  }
+  return $content;
+}
+
+/**
+* Generate block content
+* Generating only first mail and physical address
+*/
+function expressweb_contact_mail_and_address_block_content() {
+  $nodes = node_load_multiple(array(), array('type' => 'contact'));
+  if(!empty($nodes)) {
+    foreach ($nodes as $key => $value) {
+      //$view = node_view($nodes[$key], 'teaser');
+      $wrapper = entity_metadata_wrapper('node', $nodes[$key]);
+
+      $street = $wrapper->field_street_and_number->value();
+      $postal_code = $wrapper->field_postal_code->value();
+      $city = $wrapper->field_city->value();
+
+      $first_mail = $wrapper->field_mail[0]->field_mail_address->value();
+    }
+    $content = theme('contact_mail_and_address', array('mail' => $first_mail, 'street' => $street, 'postal_code' => $postal_code, 'city' => $city));
+  } else {
+    $content = t('No address and mail specified');
+  }
+  return $content;
+}
+
+/**
+* Implements hook_theme().
+* This way content type uses theme file loacted in templates directory instead of default node.tpl.php file.
+* Still it can be overriden by in theme directory.
+*/
+function expressweb_contact_theme($existing, $type, $theme, $path) {
+  $theme = array();
+
+  $theme['node__contact'] = array(
+    'render element' => 'content',
+    'base hook' => 'node',
+    'template' => 'node--contact',
+    'path' => drupal_get_path('module', 'expressweb_contact') . '/templates',
+  );
+
+  $theme['node__contact_templates'] = array(
+    'render element' => 'content',
+    'base hook' => 'node',
+    'template' => 'node--contact_templates',
+    'path' => drupal_get_path('module', 'expressweb_contact') . '/templates',
+  );
+
+  $theme['contact_phone'] = array(
+    'template' => 'contact-phone',
+    'path' => drupal_get_path('module', 'expressweb_contact') . '/templates',
+    'variables' => array(
+      'phone' => NULL,
+    ),
+  );
+
+  $theme['contact_mail_and_address'] = array(
+    'template' => 'contact-mail-and-address',
+    'path' => drupal_get_path('module', 'expressweb_contact') . '/templates',
+    'variables' => array(
+      'mail' => NULL,
+      'street' => NULL,
+      'postal_code' => NULL,
+      'city' => NULL,
+    ),
+  );
+  return $theme;
+}
+
+/**
+* Implements hook_preprocess_hook().
+*/
+function expressweb_contact_preprocess_node(&$vars) {
+  if ($vars['type'] == 'contact') {
+
+    $wrapper = entity_metadata_wrapper('node', $vars['node']);
+
+    // Get contact style from admin and pass it to template file 
+    // Make desired changes to render it
+    $vars['contact_style'] = variable_get('expressweb_contact_contact_style', 0);
+    if ($vars['contact_style'] == '1') {
+      $vars['classes_array'][] = 'zagron';
+
+      // Merge address
+      $street = $wrapper->field_street_and_number->value();
+      $postal_code = $wrapper->field_postal_code->value();
+      $city = $wrapper->field_city->value();
+      $vars['merged_address'] = $street . ', ' . $postal_code .' '. $city;
+
+      //GPS
+      $vars['latitude'] = $wrapper->field_latitude->value();
+      $vars['longitude'] = $wrapper->field_longitude->value();
+    }
+
+    /* Opening hours */
+    $days = array(
+      'field_monday' => t('Monday'),
+      'field_tusday' => t('Tuesday'),
+      'field_wensday' => t('Wednesday'),
+      'field_thursday' => t('Thursday'),
+      'field_friday' => t('Friday'),
+      'field_saturday' => t('Saturday'),
+      'field_sunday' => t('Sunday'),
+    );
+
+    $opening_hours = array();
+    $opening_hours_merged = array();
+    $count_days = 0;
+
+    foreach ($days as $key => $day) {
+      if ($wrapper->$key->getIdentifier()) {
+        $opening_hours[$day] = array($wrapper->$key->field_from->value(), $wrapper->$key->field_to->value());
+      } else {
+        $count_days++;
+        $opening_hours[$day] = array(t('Closed'));
+      }
+    }
+    
+    // If not all days has assigned 'Closed' then generate opening hours
+    if ($count_days != '7') {
+      $days = count($opening_hours);
+      $keys = array_keys($opening_hours);
+
+      for($count = 0; $count < $days; $count++) {
+        $i = 1;
+        while (isset($keys[$count+$i]) && $opening_hours[$keys[$count+$i]][0] == $opening_hours[$keys[$count]][0] && $opening_hours[$keys[$count+$i]][1] == $opening_hours[$keys[$count]][1])
+              $i++;
+        if ($i > 1) {
+          if (isset($opening_hours[$keys[$count]][0])) {
+            $opening_hours_merged[$keys[$count] . " - " . $keys[$count+$i-1]][0] = $opening_hours[$keys[$count]][0];
+          }
+          if (isset($opening_hours[$keys[$count]][1])) {
+            $opening_hours_merged[$keys[$count] . " - " . $keys[$count+$i-1]][1] = $opening_hours[$keys[$count]][1];
+          }
+        } else {
+          if (isset($opening_hours[$keys[$count]][0])) {
+            $opening_hours_merged[$keys[$count]][0] = $opening_hours[$keys[$count]][0];
+          }
+          if (isset($opening_hours[$keys[$count]][1])) {
+            $opening_hours_merged[$keys[$count]][1] = $opening_hours[$keys[$count]][1];
+          }
+        }
+        $count += ($i - 1);
+      }
+
+      $hours = '';
+      foreach($opening_hours_merged as $key => $value) {
+        foreach($value as $hour_key => $hour) {
+          if ($hour_key == '0' && array_key_exists(1, $value)) {
+            $hours .= $hour . '-';
+          } else {
+            $hours .= $hour;
+          } 
+        }
+        $opening_hours_final[$key] = $hours;
+        $hours = ''; 
+      }
+    // If all days has assigned 'Closed' then clear opening_hours_final var
+    } else {
+      $opening_hours_final = '';
+    }
+    $vars['opening_hours'] = $opening_hours_final;
+
+    /* Payment information */
+    $payment = $wrapper->field_card_payment->value();
+    if ($payment == '1') {
+      $vars['payment_info'] = t('We do not accept card payment.');
+    } elseif ($payment == '0') {
+      $vars['payment_info'] = t('We do accept card payment.');
+    }
+
+    /* Google map */
+    if (isset($wrapper->field_latitude) && isset($wrapper->field_longitude)) {
+      $vars['map'] = 'exists';
+      $coordinates['latitude'] = $wrapper->field_latitude->value();
+      $coordinates['longitude'] = $wrapper->field_longitude->value();
+    
+      drupal_add_js('https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false', 'external');
+      drupal_add_js(drupal_get_path('module', 'expressweb_contact') . '/js/map.js');
+      drupal_add_js(array('map' => array('coordinates' => $coordinates)), 'setting');
+    }
+
+    /* Contact form */
+    $contact_form_status = variable_get('expressweb_contact_contact_form', 0);
+    // If contact form is enabled in administration
+    if ($contact_form_status == '1') {
+      global $user;
+      drupal_add_js(drupal_get_path('module', 'expressweb_contact') . '/js/expressweb_contact_form.js');
+      module_load_include('inc', 'node', 'node.pages');
+
+      $node = (object) array(
+        'uid' => $user->uid,
+        'name' => (isset($user->name) ? $user->name : ''),
+        'type' => 'contact_form',
+        'language' => LANGUAGE_NONE,
+      );
+
+      $form = drupal_get_form('contact_form_node_form', $node);
+      $vars['contact_form'] =  $form;
+    }
+
+    /* Description */
+    if (isset($wrapper->body)) {
+      $vars['body'] = $wrapper->body->value();
+      $vars['body'] = nl2br($vars['body']['safe_value']);
+    }
+  } 
+
+  // Contact templates for complex page
+  if ($vars['type'] == 'contact_templates') {
+    $wrapper = entity_metadata_wrapper('node', $vars['node']);
+    $template = $wrapper->field_template->value();
+    $contact_node = $wrapper->field_contact_page->value();
+
+    /* Google map */
+    $contact_wrapper = entity_metadata_wrapper('node', $contact_node);
+    if (isset($contact_wrapper->field_latitude) && isset($contact_wrapper->field_longitude)) {
+      $vars['map'] = 'exists';
+      $coordinates['latitude'] = $contact_wrapper->field_latitude->value();
+      $coordinates['longitude'] = $contact_wrapper->field_longitude->value();
+    
+      drupal_add_js('https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false', 'external');
+      drupal_add_js(drupal_get_path('module', 'expressweb_contact') . '/js/map.js');
+      drupal_add_js(array('map' => array('coordinates' => $coordinates)), 'setting');
+    }
+
+    switch ($template) {
+      // Teaser
+      case '0':
+        // Add custom class teaser-template
+        $vars['classes_array'][] = 'teaser-template';
+        $vars['teaser_template'] = '';
+
+        $vars['company_name'] = field_view_field('node', $contact_node, 'field_contact_company_name', 'templates');
+
+        $vars['street_and_number'] = field_view_field('node', $contact_node, 'field_street_and_number', 'templates');
+        $vars['postal_code'] = field_view_field('node', $contact_node, 'field_postal_code', 'templates');
+        $vars['city'] = field_view_field('node', $contact_node, 'field_city', 'templates');
+
+        $vars['phone'] = field_view_field('node', $contact_node, 'field_phone', 'templates');
+        $vars['fax'] = field_view_field('node', $contact_node, 'field_fax', 'templates');
+
+        $vars['mail'] = field_view_field('node', $contact_node, 'field_mail', 'templates');
+
+        $vars['bank_account_number'] = field_view_field('node', $contact_node, 'field_bank_account_number', 'templates');
+        $vars['iban'] = field_view_field('node', $contact_node, 'field_iban', 'templates');
+        $vars['swift'] = field_view_field('node', $contact_node, 'field_swift_code_bic', 'templates');
+
+        break;
+
+      // Phone only
+      case '1':
+        // Add custom class phone-only-template
+        $vars['classes_array'][] = 'phone-only-template';
+        $vars['phone_template'] = '';
+        $vars['phone'] = field_view_field('node', $contact_node, 'field_phone', 'templates');
+        break;
+
+      // Mail only
+      case '2':
+        // Add custom class mail-only-template
+        $vars['classes_array'][] = 'mail-only-template';
+        $vars['mail_template'] = '';
+        $vars['mail'] = field_view_field('node', $contact_node, 'field_mail', 'templates');
+        break;
+
+      // Phone and mail
+      case '3':
+        // Add custom class phone-and-mail-template
+        $vars['classes_array'][] = 'phone-and-mail-template';
+        $vars['phone_and_mail_template'] = '';
+        $vars['phone'] = field_view_field('node', $contact_node, 'field_phone', 'templates');
+        $vars['mail'] = field_view_field('node', $contact_node, 'field_mail', 'templates');
+        break;
+
+      // Address only
+      case '4':
+        // Add custom class address-only-template
+        $vars['classes_array'][] = 'address-only-template';
+        $vars['address_template'] = '';
+        $vars['company_name'] = field_view_field('node', $contact_node, 'field_contact_company_name', 'templates');
+        $vars['street_and_number'] = field_view_field('node', $contact_node, 'field_street_and_number', 'templates');
+        $vars['postal_code'] = field_view_field('node', $contact_node, 'field_postal_code', 'templates');
+        $vars['city'] = field_view_field('node', $contact_node, 'field_city', 'templates');
+        break;
+    }
+  }
+}
+
+/**
+* Implements hook_form_FORM_ID_alter().
+*/
+function expressweb_contact_form_contact_form_node_form_alter(&$form, &$form_state, $form_id) {
+  // Get e-mail address for contact form
+  $nodes = node_load_multiple(array(), array('type' => 'contact'));
+  foreach ($nodes as $key => $value) {
+    $email = field_view_field('node', $value, 'field_e_mail_form_address');
+  }
+
+  // Add new value form element to store contact form email to
+  $form['e_mail_contact'] = array(
+    '#type' => 'value',
+    '#value' => $email['#items']['0']['email'],
+  );
+
+  $form['actions']['submit']['#value'] = t('Send message');
+  $form['actions']['submit']['#submit'][] = 'expressweb_contact_send_mail';
+  $form['actions']['submit']['#submit'][] = 'expressweb_contact_status_message';
+}
+
+/**
+* Custom submit function for contact form
+*/
+function expressweb_contact_send_mail($form, &$form_state) {
+
+  $body = '';
+  $body .= t('Name and surname'). ': ' .$form_state['values']['title']."\r\n";
+  $body .= t('Company name'). ': ' .$form_state['values']['field_company_name'][LANGUAGE_NONE][0]['value']."\r\n";
+  $body .= t('Phone number'). ': ' .$form_state['values']['field_form_phone_number'][LANGUAGE_NONE][0]['value']."\r\n";
+  $body .= t('E-mail address'). ': ' .$form_state['values']['field_e_mail_address'][LANGUAGE_NONE][0]['email']."\r\n";
+  $body .= t('Message'). ': ' .$form_state['values']['body'][LANGUAGE_NONE][0]['value']."\r\n";
+
+  $confirmation_message = t('Thank you. Your message was sent. We will answer as soon as possible.');
+  expressweb_reservations_drupal_mail('default_from', $form['e_mail_contact']['#value'], t('New contact message'), $body, $confirmation_message);
+
+  /* Redirect to one existing contact page node */
+  global $base_url;
+  $nodes = node_load_multiple(array(), array('type' => 'contact'));
+  foreach ($nodes as $key => $value) {
+    $form_state['redirect'] = $base_url . url('node/'.$key);  
+  }
+}
+
+/**
+* Contact form submit message 
+*/
+function expressweb_contact_status_message() {
+  // Clean all 'status' type messages
+  $messages = drupal_get_messages('status');
+
+  // Override message
+  drupal_set_message(t('Thank you for the messsage. We will contact you as soon as possible.'));
+}

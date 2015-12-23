@@ -1,0 +1,559 @@
+<?php
+/**
+ * @file
+ * Code for the ExpressWeb - Admin feature.
+ */
+
+include_once 'expressweb_admin.features.inc';
+
+/**
+ * Implements hook_menu().
+ */
+function expressweb_admin_menu() {
+  $items['admin/expressweb'] = array(
+    'title' => 'Welcome to administration',
+    'description' => t('Administration front page'),
+    'page callback' => 'expressweb_admin_front_page',
+    'access callback' => 'expressweb_admin_access_set',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['admin/add/section'] = array(
+    'title' => 'Create new section',
+    'page callback' => 'expressweb_admin_create_section_page',
+    'access callback' => 'expressweb_admin_access_create_section',
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+/**
+ * Create sections page
+ */
+function expressweb_admin_create_section_page() {
+  $output = '';
+  $output .= '<ul class="sections">';
+
+  global $base_url;
+  $content_types = node_type_get_types();
+  $excluded_content_types = expressweb_admin_excluded_content_types();
+
+  foreach ($content_types as $key => $value) {
+    if (node_access('create', $value->type) && !in_array($value->type, $excluded_content_types)) {
+      // Build list of sections or table price list
+      if ((substr($value->type, 0, 7) == 'section') || ($value->type == 'table_price_list')) {
+        $output .= '<li class="section '.$value->type.'"><a href="'.$base_url.'/node/add/'.str_replace('_', '-', $value->type).'"><img src="/'.drupal_get_path('module', 'expressweb_admin').'/images/'.$value->type.'.jpg" alt="" />'.i18n_string_translate('node:type:'.$value->type.':name', $value->name).'</a></li>';
+      }
+    }
+  }
+  $output .= '</ul>';
+  return $output;
+}
+
+/**
+ * Create sections page access
+ */
+function expressweb_admin_access_create_section() {
+  return TRUE;
+}
+
+/**
+ * Implements hook_menu_alter().
+ */
+function expressweb_admin_menu_alter(&$items) {
+  $items['user']['theme callback'] = 'expressweb_admin_user_admin_theme';
+}
+
+function expressweb_admin_user_admin_theme() {
+  return 'admin_expressweb';
+}
+
+/**
+ * Implements hook_preprocess_HOOK().
+ */
+function expressweb_admin_preprocess_page(&$vars) {
+  if (in_array('page__user', $vars['theme_hook_suggestions'])) {
+    drupal_set_title(t('Login'));
+  }
+}
+
+/* 
+ * Admin front page access
+ */
+function expressweb_admin_access_set() {
+  global $user;
+  if (isset($user->uid) && in_array('authenticated user', $user->roles)) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+/* 
+ * Admin front page
+ */
+function expressweb_admin_front_page() {
+  drupal_set_title(t('Welcome to admin'));
+  $content = '';
+  $content = 'test';
+  return $content;
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function expressweb_admin_block_info() {
+  $blocks = array();
+  
+  $blocks['expressweb_admin_view_website'] = array(
+    'info' => t('Expressweb Admin: website link'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+
+  $blocks['expressweb_admin_help'] = array(
+    'info' => t('Expressweb Admin: help link'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+
+  $blocks['expressweb_admin_logout'] = array(
+    'info' => t('Expressweb Admin: logout link'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+
+  $blocks['expressweb_admin_search'] = array(
+    'info' => t('Expressweb Admin: autocomplete search'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+
+  $blocks['expressweb_admin_create_node'] = array(
+    'info' => t('Expressweb Admin: create node links list'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+
+  $blocks['expressweb_admin_manage_nodes'] = array(
+    'info' => t('Expressweb Admin: edit and delete links list'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+
+  $blocks['expressweb_admin_other_links'] = array(
+    'info' => t('Expressweb Admin: admin other links'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function expressweb_admin_block_view($delta = NULL) {
+  $block = array();
+  
+  switch($delta) {
+    case 'expressweb_admin_view_website' :
+      $block['content'] = array(
+        '#markup' => expressweb_admin_view_link(),
+      );
+    break;
+
+    case 'expressweb_admin_help' :
+      $block['content'] = array(
+        '#markup' => expressweb_admin_help_link(),
+      );
+    break;
+
+    case 'expressweb_admin_logout' :
+      $block['content'] = array(
+        '#markup' => expressweb_admin_logout_link(),
+      );
+    break;
+
+    case 'expressweb_admin_search' :
+      $block['content'] = array(
+        '#markup' => drupal_render(drupal_get_form('expressweb_admin_autocomplete_form')),
+      );
+    break;
+
+    case 'expressweb_admin_create_node' :
+      $block['subject'] = t('New document');
+      $block['content'] = array(
+        '#markup' => expressweb_admin_create_node_links(),
+      );
+    break;
+
+    case 'expressweb_admin_manage_nodes' :
+      $block['subject'] = t('Manage documents');
+      $block['content'] = array(
+        '#markup' => expressweb_admin_manage_documents_links(),
+      );
+    break;
+
+    case 'expressweb_admin_other_links' :
+      $block['content'] = array(
+        '#markup' => expressweb_admin_other_links(),
+      );
+    break;
+    
+  }
+  return $block;
+}
+
+/**
+ * Content of view page link block
+ */
+function expressweb_admin_view_link() {
+  $options = array(
+    'attributes' => array(
+      'class' => array('website-link'),
+      'target' => '_blank',
+    ),
+  );
+  $link = l(t('View website'), '<front>', $options);
+  return $link;
+}
+
+/**
+ * Content of help link block
+ */
+function expressweb_admin_help_link() {
+  $options = array(
+    'attributes' => array(
+      'class' => array('help-link'),
+      'target' => '_blank',
+    ),
+  );
+  $link = l(t('Help'), '<front>', $options);
+  return $link;
+}
+
+/**
+ * Content of logout link block
+ */
+function expressweb_admin_logout_link() {
+  $link = NULL;
+  $options = array(
+    'attributes' => array(
+      'class' => array('logout-link'),
+    ),
+  );
+
+  global $user;
+  if (isset($user->uid)) {
+    $link = l(t('Logout'), 'user/logout', $options);
+  }
+  return $link;
+}
+
+/*
+ * Autocomplete form for quick node editing
+ */
+function expressweb_admin_autocomplete_form($form, &$form_state) {
+  $form['search'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Search'),
+    '#value' => t('Search in titles and go to edit page'),
+    '#autocomplete_path' => 'admin/config/expressweb',
+  );
+  return $form;
+}
+
+function expressweb_admin_excluded_content_types() {
+  $content_types = array(
+    'contact_form',
+    'newsletter',
+  );
+  return $content_types;
+}
+
+/**
+ * Content of create document links with transalted version block
+ */
+function expressweb_admin_create_node_links() {
+  $links = array();
+  $section = '';
+  $content_types = node_type_get_types();
+  $excluded_content_types = expressweb_admin_excluded_content_types();
+  foreach ($content_types as $key => $value) {
+    if (node_access('create', $value->type) && !in_array($value->type, $excluded_content_types)) {
+      // Build list of links without sections and table price list
+      if ((substr($value->type, 0, 7) !== 'section') && ($value->type != 'table_price_list')) {
+        $links[] = array(
+          'title' => i18n_string_translate('node:type:'.$value->type.':name', $value->name),
+          'href' => 'node/add/'.str_replace('_', '-', $value->type),
+        );
+      } else {
+        // This means there is at least one section that user can create
+        $section = TRUE;
+      }
+    }
+  }
+
+  if ($section) {
+    // Add sections as a one link
+    $links[] = array(
+      'title' => t('Section'),
+      'href' => 'admin/add/section',
+    );
+  }
+
+  return theme('links', array('links' => $links));
+}
+
+/**
+ * Content of block. 
+ * It will display only those content types which user has access to (edit or delete)
+ * Finallly it will provide links to the view with contextual filter, which is content type.
+ */
+function expressweb_admin_manage_documents_links() {
+  $links = array();
+  $section = '';
+  $content_types = node_type_get_types();
+  $excluded_content_types = expressweb_admin_excluded_content_types();
+  foreach ($content_types as $key => $value) {
+    if ((user_access('edit any '.$value->type.' content') && !in_array($value->type, $excluded_content_types)) || (user_access('delete any '.$value->type.' content') && !in_array($value->type, $excluded_content_types))) {
+
+      // Build list of links without sections and table price list
+      if ((substr($value->type, 0, 7) !== 'section') && ($value->type != 'table_price_list')) {
+        $links[] = array(
+          'title' => i18n_string_translate('node:type:'.$value->type.':name', $value->name),
+          'href' => 'admin/administer-content/'.$value->type,
+        );
+      } else {
+        // This means there is at least one section that user can manage
+        $section = TRUE;
+      }
+    }
+  }
+
+  if ($section) {
+    // Add sections as a one link
+    $links[] = array(
+      'title' => t('Section'),
+      'href' => 'admin/administer-sections',
+    );
+  }
+  
+  return theme('links', array('links' => $links));
+}
+
+/**
+ * Content of other links block. 
+ */
+function expressweb_admin_other_links() {
+  global $user;
+
+  $links = array();
+
+  // Popup settings
+  if (user_access('edit any content')) { 
+    $links['pop_up'] = array(
+      'title' => t('Pop-up window'),
+      'href' => 'http://www.onet.pl',
+      'attributes' => array(
+        'class' => array('popup'),
+      ),
+    );
+  }
+
+  // Newsletter link
+  if (user_access('edit any newsletter content') && user_access('delete any newsletter content')) { 
+    $links['newsletter'] = array(
+      'title' => t('Newsletter - subscribers'),
+      'href' => 'admin/newsletter',
+      'attributes' => array(
+        'class' => array('newsletter'),
+      ),
+    );
+  }
+
+  // Statistics link
+  if (user_access('edit any content')) { 
+    $links['statistics'] = array(
+      'title' => t('Statistics'),
+      'href' => 'admin/expressweb/statistics',
+      'attributes' => array(
+        'class' => array('statistics'),
+      ),
+    );
+  }
+
+  // Web config
+  if (user_access('edit any content')) { 
+    $links['web_config'] = array(
+      'title' => t('Configuration'),
+      'href' => 'admin/expressweb/config',
+      'attributes' => array(
+        'class' => array('web-config'),
+      ),
+    );
+  }
+
+  // Contact form entries
+  if (variable_get('expressweb_contact_contact_form', 0) == '1') {
+    $links['contact_form_entries'] = array(
+      'title' => t('Contact form - entires'),
+      'href' => 'admin/contact-form-entries',
+      'attributes' => array(
+        'class' => array('contact-form-entries'),
+      ),
+    );
+  }
+
+  // Account settings link
+  if (isset($user->uid)) {
+    $links['account_settings'] = array(
+      'title' => t('Account settings'),
+      'href' => 'user/'.$user->uid.'/edit',
+      'attributes' => array(
+        'class' => array('account-settings'),
+      ),
+    );
+  }
+
+  // Administer menu
+  if (user_access('administer menu')) {
+    $links['administer_menu'] = array(
+      'title' => t('Administer menu'),
+      'href' => 'admin/structure/menu/manage/main-menu',
+      'attributes' => array(
+        'class' => array('administer-menu'),
+      ),
+    );
+  }
+
+
+  // Logout link
+  if (isset($user->uid)) {
+    $links['logout'] = array(
+      'title' => t('Logout'),
+      'href' => 'user/logout',
+      'attributes' => array(
+        'class' => array('logout'),
+      ),
+     );
+  }
+
+  return theme('links', array('links' => $links));
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function expressweb_admin_form_user_profile_form_alter(&$form, &$form_state, $form_id) {
+  // Remove unused form elements for authenticated user
+  global $user;
+  if (in_array('authenticated user', $user->roles) && !in_array('administrator', $user->roles)) {
+    unset($form['contact']);
+    unset($form['#metatags']);
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function expressweb_admin_form_user_login_alter(&$form, &$form_state, $form_id) {
+  $form['#submit'][] = 'expressweb_admin_user_redirect_page';
+}
+
+/**
+ * Submit handler for redirect user to custom page after login
+ */
+function expressweb_admin_user_redirect_page(&$form, &$form_state) {
+  $form_state['redirect'] = 'admin/administer-content/complex_page';
+}
+
+/**
+ * Implements hook_views_pre_render().
+ */
+function expressweb_admin_views_pre_render(&$view) {
+  if ($view->name == 'administer_sections') {
+    // This part is for image links above the view which represents
+    // sections. Those images are linked to use contextual filter within the view
+    // so the user can filter out the results. 
+
+    // It also contains the message which tells user what kind of 
+    // section type the view is filtered currently.
+
+    global $base_url;
+    $output = '';
+    // Get all content types
+    $content_types = node_type_get_types();
+    $excluded_content_types = expressweb_admin_excluded_content_types();
+
+    // If there is a cantextual filter set already
+    if (isset($view->args[0]) && !empty($view->args[0])) {
+      $argument = $view->args[0];
+      $content_type_translated_name = i18n_string_translate('node:type:'.$view->args[0].':name', $content_types[$argument]->name);
+
+      // Create a div tag with info about the current filter
+      $variables = array(
+        'element' => array(
+          '#tag' => 'div',
+          '#attributes' => array('class' => array('message')),
+          '#value' => t('Shows only @section_type', array('@section_type' => $content_type_translated_name)),
+        ),
+      );
+
+      $output .= theme('html_tag', $variables);
+    }
+
+    $output .= '<ul class="sections">';
+    // Let's create first element which will reset sections to show all.
+    $output .= '<li class="section"><a href="'.$base_url.'/admin/administer-sections"><img src="/'.drupal_get_path('module', 'expressweb_admin').'/images/section_all.jpg" alt="" />'.t('Show all').'</a></li>';
+
+    // Let's create list of sections
+    foreach ($content_types as $key => $value) {
+      if (node_access('create', $value->type) && !in_array($value->type, $excluded_content_types)) {
+        // Build list of sections or table price list
+        if ((substr($value->type, 0, 7) == 'section') || ($value->type == 'table_price_list')) {
+          $output .= '<li class="section '.$value->type.'"><a href="'.$base_url.'/admin/administer-sections/'.$value->type.'"><img src="/'.drupal_get_path('module', 'expressweb_admin').'/images/'.$value->type.'.jpg" alt="" />'.i18n_string_translate('node:type:'.$value->type.':name', $value->name).'</a></li>';
+        }
+      }
+    }
+    $output .= '</ul>';
+    
+    // Finally output all the thml as view attachment. It's build in funcionallity of views.
+    $view->attachment_before = $output;
+    $view->filter['type']->value['room'] = 'room';
+    //dsm($view->filter['type']);
+    //dsm($view);
+
+  }
+} 
+
+/**
+ * Implements hook_views_post_execute().
+ */
+function expressweb_admin_views_post_execute(&$view) {
+
+}
+
+/**
+ * Implements hook_views_pre_execute().
+ */
+function expressweb_admin_views_pre_execute(&$view) {
+
+}
+
+/**
+ * Implements hook_views_pre_view().
+ */
+function expressweb_admin_views_pre_view(&$view) {
+  if ($view->name == 'administer_sections') {
+    // This part of code overrides filters that has been set in UI
+    // It overrides filters to only those sections that user has access to.
+    $content_types = node_type_get_types();
+    $excluded_content_types = expressweb_admin_excluded_content_types();
+
+    // Let's create array ($content_types_user_has_access) of sections
+    foreach ($content_types as $key => $value) {
+      if (node_access('create', $value->type) && !in_array($value->type, $excluded_content_types)) {
+        // Build list of sections or table price list
+        if ((substr($value->type, 0, 7) == 'section') || ($value->type == 'table_price_list')) {
+          $content_types_user_has_access[$value->type] = $value->type;
+        }
+      }
+    }
+    // Let's change node type filters provided by UI with the new one. 
+    $view->display['default']->handler->options['filters']['type']['value'] = $content_types_user_has_access;
+  }
+}
