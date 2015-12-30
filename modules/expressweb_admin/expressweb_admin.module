@@ -11,7 +11,7 @@ include_once 'expressweb_admin.features.inc';
  */
 function expressweb_admin_menu() {
   $items['admin/expressweb'] = array(
-    'title' => 'Welcome to administration',
+    'title' => 'Welcome to admin panel',
     'description' => t('Administration front page'),
     'page callback' => 'expressweb_admin_front_page',
     'access callback' => 'expressweb_admin_access_set',
